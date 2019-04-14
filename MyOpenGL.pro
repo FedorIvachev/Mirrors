@@ -15,10 +15,12 @@ TEMPLATE = app
 SOURCES += main.cpp\
         window.cpp \
     myglwidget.cpp \
-    point.cpp
+    point.cpp \
+    room.cpp
 
 HEADERS  += window.h \
     myglwidget.h \
-    point.h
+    point.h \
+    room.h
 
 FORMS    += window.ui

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>400</height>
+    <width>398</width>
+    <height>402</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -54,6 +54,36 @@
      </item>
     </layout>
    </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Ray Strength   </string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSlider" name="raysstrengthslider">
+       <property name="minimum">
+        <number>0</number>
+       </property>
+       <property name="maximum">
+        <number>40</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="tickPosition">
+        <enum>QSlider::TicksAbove</enum>
+       </property>
+       <property name="tickInterval">
+        <number>1</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
@@ -69,6 +99,7 @@
     <slot>setYRotation(int)</slot>
     <slot>setZCoordinate(int)</slot>
     <slot>setMirrorsNumber(int)</slot>
+    <slot>setRayStrength(int)</slot>
    </slots>
   </customwidget>
  </customwidgets>
@@ -87,6 +118,22 @@
     <hint type="destinationlabel">
      <x>298</x>
      <y>111</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>raysstrengthslider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>myGLWidget</receiver>
+   <slot>setRayStrength(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>245</x>
+     <y>375</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>198</x>
+     <y>161</y>
     </hint>
    </hints>
   </connection>

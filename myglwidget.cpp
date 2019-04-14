@@ -12,7 +12,7 @@
 MyGLWidget::MyGLWidget(QWidget *parent)
     : QGLWidget(QGLFormat(QGL::SampleBuffers), parent)
 {
-    ray = Ray();
+    r.loadCoords();
 
     setAutoBufferSwap(true);
 
@@ -30,13 +30,13 @@ QSize MyGLWidget::sizeHint() const
 void MyGLWidget::mousePressEvent(QMouseEvent *event)
 {
     int eps = 10;
-    for (int i = 0; i < v.length(); i++) {
-        if ( ((v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
-             ((v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
-             ((1 - v[i].center.y) * size().height() * 1.0 / 2 - event->pos().y() <= 40) &&
-             ((1 - v[i].center.y) * size().height() * 1.0 / 2 - event->pos().y() >= -40))
+    for (int i = 0; i < r.v.length(); i++) {
+        if ( ((r.v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
+             ((r.v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
+             ((1 - r.v[i].center.y) * size().height() * 1.0 / 2 - event->pos().y() <= 40) &&
+             ((1 - r.v[i].center.y) * size().height() * 1.0 / 2 - event->pos().y() >= -40))
         {
-            v[i].color = 1;
+            r.v[i].color = 1;
             lastPos = event->pos();
             break;
         }
@@ -51,8 +51,8 @@ void MyGLWidget::mousePressEvent(QMouseEvent *event)
 
 void MyGLWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    for (int i = 0; i < v.length(); i++) {
-        v[i].color = 0;
+    for (int i = 0; i < r.v.length(); i++) {
+        r.v[i].color = 0;
     }
 
     //QTextStream Qcout(stdout);
@@ -60,71 +60,64 @@ void MyGLWidget::mouseReleaseEvent(QMouseEvent *event)
 }
 void MyGLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    for (int i = 0; i < v.length(); i++) {
-        if (v[i].color == 1) {
+    for (int i = 0; i < r.v.length(); i++) {
+        if (r.v[i].color == 1) {
             float dx = (event->x() - lastPos.x()) * 1.0 / (size().width() - 60);
             float dy = (event->y() - lastPos.y()) * 1.0 / (size().height() - 60);
             if (event->buttons() & Qt::LeftButton) {
-                v[i].center.x += dx * 2;
-                v[i].center.y -= dy * 2;
-                updateMirrorsCoord();
+                r.v[i].center.x += dx * 2;
+                r.v[i].center.y -= dy * 2;
             }
             //QTextStream Qcout(stdout);
             //Qcout << dx << endl;
-            lastPos = event->pos();
 
-            ray.path.clear();
-            ray.path.append(Point(-0.5,0));
-            ray.path.append(Point(-0.499,0.002));
-            path_built = false;
 
-            updateGL();
+
         }
     }
 
+    lastPos = event->pos();
+    r.update();
+    updateGL();
+
 
 }
 
-void MyGLWidget::updateMirrorsCoord()
-{
-    m.clear();
-    for (int i = 0; i < n - 1; i++) {
-        Mirror mir(v[i], v[i + 1]);
-        m.append(mir);
-    }
-    Mirror mir(v.last(), v[0]);
-    m.append(mir);
-}
+
+
 
 void MyGLWidget::updateCurvesCoord()
 {
 }
 
-Point MyGLWidget::rotateCS(Point a, float t)
-{
-    return Point(a.x * cos(t) - a.y * sin(t), a.x * sin(t) + a.y * cos(t));
-}
+
 void MyGLWidget::setMirrorsNumber(int z)
 {
-
     const double PI=3.14159265358979323846;
     emit mirrorsNumberChanged(z);
-    n = z;
-    v.clear();
-    for(int i = 0; i < n; i++) {
-        double angle=i*2*PI/n;
+    r.n = z;
+    r.v.clear();
+    for(int i = 0; i < r.n; i++) {
+        double angle=i*2*PI/r.n;
         Point a(cos(angle), sin(angle));
         Vertex v1 (a, 0, false);
-        v.append(v1);
+        r.v.append(v1);
     }
-    updateMirrorsCoord();
-
-    ray.path.clear();
-    ray.path.append(Point(-0.5,0));
-    ray.path.append(Point(-0.499,0.002));
-    path_built = false;
+    r.update();
     updateGL();
 }
+
+void MyGLWidget::setRayStrength(int z)
+{
+    emit RayStrengthChanged(z);
+    r.strength = z;
+    r.ray.path.clear();
+    r.ray.path.append(Point(-0.5,0));
+    r.ray.path.append(Point(-0.499,0.002));
+    r.path_built = false;
+    updateGL();
+}
+
 
 void MyGLWidget::initializeGL()
 {
@@ -164,15 +157,15 @@ void MyGLWidget::resizeGL(int width, int height)
 
 void MyGLWidget::draw()
 {
-    if (!path_built) get_path(10);
+    if (!r.path_built) r.get_path(r.strength);
     drawRay();
     drawPolygon();
+    r.saveCoords();
 }
 
 void MyGLWidget::drawPolygon()
 {
-    double r=1;
-    int sides=n;
+    int sides=r.n;
 
     const double PI=3.14159265358979323846;
 
@@ -180,22 +173,20 @@ void MyGLWidget::drawPolygon()
     glBegin(GL_LINE_STRIP);
     for(int i=0;i<sides;i++){
         double angle=i*2*PI/sides;
-        glVertex2d(v[i].center.x + 1.5, v[i].center.y);
+        glVertex2d(r.v[i].center.x + 1.5, r.v[i].center.y);
     }
-    glVertex2d(v[0].center.x + 1.5, v[0].center.y);
+    glVertex2d(r.v[0].center.x + 1.5, r.v[0].center.y);
     glEnd();
     for(int i = 0; i < sides; i++) {
-        drawCircle(v[i].center.x + 1.5, v[i].center.y, 0.1, 100);
+        drawCircle(r.v[i].center.x + 1.5, r.v[i].center.y, 0.1, 100);
     }
-    for(int i = 0; i < sides; i++) {
-        float k = -(m[i].left.center.x - m[i].right.center.x) / (m[i].left.center.y - m[i].right.center.y);
+    /*for(int i = 0; i < sides; i++) {
+        float k = -(r.m[i].left.center.x - r.m[i].right.center.x) / (m[i].left.center.y - m[i].right.center.y);
         Point P(0.1 + (m[i].left.center.x + m[i].right.center.x) / 2,
                 (0.1 + (m[i].left.center.x + m[i].right.center.x) / 2) * k + (m[i].left.center.y + m[i].right.center.y) / 2 - k * (m[i].left.center.x + m[i].right.center.x) / 2);
 
-        drawCurve(P.x + 1.5,
-                  P.y,
-                  5, 5);
-    }
+        //drawCurve(P.x + 1.5, P.y, 5, 5);
+    }*/
 
 }
 
@@ -229,9 +220,9 @@ void MyGLWidget::drawRay()
     glBegin(GL_LINE_STRIP);
 
     glColor4f(0.0f, 1.0f, 1.0f, 1);
-    for (int i = 0; i < ray.path.length(); i++) {
-        glVertex2f(ray.path[i].x + 1.5, ray.path[i].y);
-        glColor4f(0.0f, 1.0f, 1.0f, 1 - i * 1.0 / ray.path.length());
+    for (int i = 0; i < r.ray.path.length(); i++) {
+        glVertex2f(r.ray.path[i].x + 1.5, r.ray.path[i].y);
+        glColor4f(0.0f, 1.0f, 1.0f, 1 - i * 1.0 / r.ray.path.length());
     }
     glEnd();
 }
@@ -239,10 +230,6 @@ void MyGLWidget::drawRay()
 void MyGLWidget::drawCurve(double cx, double cy, double r, int num_segments)
 {
 
-    Point n(cx, cy);
-    Point zer(0,0);
-    float nl = distance(zer, n);
-    Point nn(n.x / nl, n.y / nl);
     drawCircle(cx, cy, 0.1, 100);
 
     //glBegin(GL_LINE_LOOP);
@@ -253,82 +240,3 @@ void MyGLWidget::drawCurve(double cx, double cy, double r, int num_segments)
     //}
     //glEnd();
 }
-
-void MyGLWidget::get_path(int strength) {
-    if (strength <= 0) {
-        return;
-    }
-    for (int i = 0; i < m.length(); i++) {
-        Point inter;
-        inter = get_intersection(m[i].left.center, m[i].right.center, ray.path.last(), ray.path[ray.path.length()-2]);
-        QTextStream Qcout(stdout);
-        Qcout << "Intersect " << i << " " << m[i].left.center.x << " " << m[i].left.center.y << " "
-                 << m[i].right.center.x << " " << m[i].right.center.y << " "
-              << inter.x << " " << inter.y << endl;
-
-        if ((lies_beetween(m[i].left.center, m[i].right.center, inter) &&
-            (lies_beetween(ray.path[ray.path.length()-2], inter, ray.path.last())))) {
-
-            Point p1(m[i].left.center.x - inter.x, m[i].left.center.y - inter.y);
-            Point p2(ray.path.last().x - inter.x, ray.path.last().y - inter.y);
-            //float angle = scal(p1, p2) / (distance(m[i].left.center, inter) * distance(ray.path.last(), inter));
-            Point n(p1.x, p1.y);
-            Point zer(0, 0);
-            float nl = distance(zer, n);
-            Point nn(n.x / nl, n.y / nl);
-            float h = 2 * scal(p2, nn);
-            Point q(h * nn.x, h * nn.y);
-            Point r((p2.x - q.x) / 2000 + inter.x, (p2.y - q.y) / 2000 + inter.y);
-
-
-            QTextStream Qcout(stdout);
-            Qcout << "Intersect " << i << " " << inter.x << " " << inter.y << " " << p1.x << " " << p1.y  << endl;
-
-            //ray.path.append(inter);
-            //Point zer(0, 0);
-            ray.path.append(inter);
-            ray.path.append(r);
-            strength--;
-            path_built = true;
-            get_path(strength);
-            return;
-        }
-
-        //QTextStream Qcout(stdout);
-        //Qcout << "Intersect " << i << " " << v[i].center.x << " " << v[i].center.y << " " << inter.x << " " << inter.y<< endl;
-
-    }
-    return;
-}
-
-Point MyGLWidget::get_intersection(Point a1, Point a2, Point a3, Point a4)
-{
-    float u1 = (a1.x * a2.y - a1.y * a2.x) * (a3.x - a4.x) - (a1.x - a2.x) * (a3.x * a4.y - a3.y * a4.x);
-    float d = (a1.x - a2.x) * (a3.y - a4.y) - (a1.y - a2.y) * (a3.x - a4.x);
-    float u2 = (a1.x * a2.y - a1.y * a2.x) * (a3.y - a4.y) - (a1.y - a2.y) * (a3.x * a4.y - a3.y * a4.x);
-
-
-    Point ret(u1 / d, u2 / d);
-    //Qcout << ret.x << " " << ret.y << endl;
-    return ret;
-}
-
-float MyGLWidget::distance(Point a, Point b)
-{
-    return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-}
-
-bool MyGLWidget::lies_beetween(Point a, Point b, Point c) {
-    if (distance(a, c) + distance(b, c) - distance(a, b) <= 0.00001)
-    {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-float MyGLWidget::scal(Point a, Point b)
-{
-    return a.x * b.x + a.y * b.y;
-}
-
