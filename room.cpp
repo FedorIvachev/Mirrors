@@ -14,12 +14,11 @@ void room::loadCoords()
     v.resize(n);
     for (int i = 0; i < n; i++) stream >> v[i].center.x >> v[i].center.y;
     ray = Ray();
-    stream >> strength >> ray.Start.x >> ray.Start.y
-            >> ray.Second.x >> ray.Second.y;
-    settings.close();
     area = Area();
-    area.Center.x = 0;
-    area.Center.y = 0;
+    stream >> strength >> ray.Start.x >> ray.Start.y
+            >> ray.Second.x >> ray.Second.y
+            >> area.Center.x >> area.Center.y;
+    settings.close();
     update();
 }
 
@@ -34,6 +33,7 @@ void room::saveCoords()
     stream << strength << endl;
     stream << ray.Start.x << " " << ray.Start.y << endl;
     stream << ray.Second.x << " " << ray.Second.y << endl;
+    stream << area.Center.x << " " << area.Center.y << endl;
     settings.close();
 }
 
