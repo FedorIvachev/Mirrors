@@ -30,6 +30,40 @@ QSize MyGLWidget::sizeHint() const
 void MyGLWidget::mousePressEvent(QMouseEvent *event)
 {
     int eps = 10;
+    if ( ((r.ray.Start.x + 1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
+         ((r.ray.Start.x + 1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
+         ((1 - r.ray.Start.y) * size().height() * 1.0 / 2 - event->pos().y() <= 40) &&
+         ((1 - r.ray.Start.y) * size().height() * 1.0 / 2 - event->pos().y() >= -40))
+    {
+      lastPos = event->pos();
+      r.ray.color = 1;
+      updateGL();
+      return;
+    }
+
+    if ( ((r.ray.Second.x + 1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
+         ((r.ray.Second.x + 1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
+         ((1 - r.ray.Second.y) * size().height() * 1.0 / 2 - event->pos().y() <= 40) &&
+         ((1 - r.ray.Second.y) * size().height() * 1.0 / 2 - event->pos().y() >= -40))
+    {
+      lastPos = event->pos();
+      r.ray.color = 2;
+      updateGL();
+      return;
+    }
+
+    if ( ((r.area.Center.x + 1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
+         ((r.area.Center.x + 1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
+         ((1 - r.area.Center.y) * size().height() * 1.0 / 2 - event->pos().y() <= 40) &&
+         ((1 - r.area.Center.y) * size().height() * 1.0 / 2 - event->pos().y() >= -40))
+    {
+      lastPos = event->pos();
+      r.area.color = 1;
+      updateGL();
+      return;
+    }
+
+
     for (int i = 0; i < r.v.length(); i++) {
         if ( ((r.v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() <= 40) &&
              ((r.v[i].center.x +1) * size().width() * 1.0 / 2 - event->pos().x() >= -40) &&
@@ -38,7 +72,8 @@ void MyGLWidget::mousePressEvent(QMouseEvent *event)
         {
             r.v[i].color = 1;
             lastPos = event->pos();
-            break;
+            updateGL();
+            return;
         }
     }
     //QTextStream Qcout(stdout);
@@ -51,6 +86,8 @@ void MyGLWidget::mousePressEvent(QMouseEvent *event)
 
 void MyGLWidget::mouseReleaseEvent(QMouseEvent *event)
 {
+    r.ray.color = 0;
+    r.area.color = 0;
     for (int i = 0; i < r.v.length(); i++) {
         r.v[i].color = 0;
     }
@@ -60,8 +97,35 @@ void MyGLWidget::mouseReleaseEvent(QMouseEvent *event)
 }
 void MyGLWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    if (r.area.color == 1)
+    {
+        float dx = (event->x() - lastPos.x()) * 1.0 / (size().width() - 60);
+        float dy = (event->y() - lastPos.y()) * 1.0 / (size().height() - 60);
+        if (event->buttons() & Qt::LeftButton) {
+            r.area.Center.x += dx * 2;
+            r.area.Center.y -= dy * 2;
+        }
+    }
+    if (r.ray.color == 1)
+    {
+        float dx = (event->x() - lastPos.x()) * 1.0 / (size().width() - 60);
+        float dy = (event->y() - lastPos.y()) * 1.0 / (size().height() - 60);
+        if (event->buttons() & Qt::LeftButton) {
+            r.ray.Start.x += dx * 2;
+            r.ray.Start.y -= dy * 2;
+        }
+    } else if (r.ray.color == 2)
+    {
+        float dx = (event->x() - lastPos.x()) * 1.0 / (size().width() - 60);
+        float dy = (event->y() - lastPos.y()) * 1.0 / (size().height() - 60);
+        if (event->buttons() & Qt::LeftButton) {
+            r.ray.Second.x += dx * 2;
+            r.ray.Second.y -= dy * 2;
+        }
+    }
     for (int i = 0; i < r.v.length(); i++) {
-        if (r.v[i].color == 1) {
+        if (r.v[i].color == 1)
+        {
             float dx = (event->x() - lastPos.x()) * 1.0 / (size().width() - 60);
             float dy = (event->y() - lastPos.y()) * 1.0 / (size().height() - 60);
             if (event->buttons() & Qt::LeftButton) {
@@ -111,10 +175,7 @@ void MyGLWidget::setRayStrength(int z)
 {
     emit RayStrengthChanged(z);
     r.strength = z;
-    r.ray.path.clear();
-    r.ray.path.append(Point(-0.5,0));
-    r.ray.path.append(Point(-0.499,0.002));
-    r.path_built = false;
+    r.update();
     updateGL();
 }
 
@@ -157,9 +218,13 @@ void MyGLWidget::resizeGL(int width, int height)
 
 void MyGLWidget::draw()
 {
-    if (!r.path_built) r.get_path(r.strength);
+    if (!r.path_built) {
+        r.area.ach = 0;
+        r.get_path(r.strength);
+    }
     drawRay();
     drawPolygon();
+    drawArea();
     r.saveCoords();
 }
 
@@ -177,6 +242,7 @@ void MyGLWidget::drawPolygon()
     }
     glVertex2d(r.v[0].center.x + 1.5, r.v[0].center.y);
     glEnd();
+    glColor3f(0.0f, 0.0f, 1.0f);
     for(int i = 0; i < sides; i++) {
         drawCircle(r.v[i].center.x + 1.5, r.v[i].center.y, 0.1, 100);
     }
@@ -193,30 +259,21 @@ void MyGLWidget::drawPolygon()
 
 
 void MyGLWidget::drawCircle(double cx, double cy, double r, int num_segments) {
-    //glColor3f(0.0f, 1.0f, 1.0f);  // Blue
-    //glBegin(GL_LINE_LOOP);
-    //for (int ii = 0; ii < num_segments; ii++)   {
-    //    float theta = 2.0f * 3.1415926f * float(ii) / float(num_segments);//get the current angle
-    //    float x = r * cosf(theta);//calculate the x component
-    //    float y = r * sinf(theta);//calculate the y component
-    //    glVertex2f(x + cx, y + cy);//output vertex
-    //}
-    //glEnd();
     glBegin(GL_TRIANGLE_FAN);
-        glColor3f(0.0f, 0.0f, 1.0f);  // Blue
         glVertex2f(cx, cy);       // Center of circle
         GLfloat angle;
         for (int i = 0; i <= num_segments; i++) { // Last vertex same as first vertex
            angle = i * 2.0f * 3.1415926f / num_segments;  // 360 deg for all segments
            glVertex2f(cx + cos(angle) * r, cy + sin(angle) * r);
-           //glVertex2f(lastPos.x() * 1.0 / size().width() + cos(angle) * r,
-                      //lastPos.y() * 1.0 / size().height() + sin(angle) * r);
         }
      glEnd();
 }
 
 void MyGLWidget::drawRay()
 {
+    glColor4f(0.5f, 0.7f, 1.0f, 0.3);
+    drawCircle(r.ray.path[0].x + 1.5, r.ray.path[0].y, 0.03, 365);
+    drawCircle(r.ray.path[1].x + 1.5, r.ray.path[1].y, 0.03, 365);
     glBegin(GL_LINE_STRIP);
 
     glColor4f(0.0f, 1.0f, 1.0f, 1);
@@ -225,6 +282,13 @@ void MyGLWidget::drawRay()
         glColor4f(0.0f, 1.0f, 1.0f, 1 - i * 1.0 / r.ray.path.length());
     }
     glEnd();
+}
+
+void MyGLWidget::drawArea()
+{
+    if (r.area.ach == 0) glColor4f(1.0f, 1.0f, 1.0f, 0.7);
+    else glColor4f(0.0f, 1.0f, 1.0f, 0.7);
+    drawCircle(1.5 + r.area.Center.x, r.area.Center.y, r.area.r, 365);
 }
 
 void MyGLWidget::drawCurve(double cx, double cy, double r, int num_segments)

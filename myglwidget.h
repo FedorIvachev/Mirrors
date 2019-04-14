@@ -44,6 +44,7 @@ private:
     void drawPolygon();
     void drawCircle(double cx, double cy, double r, int num_segments);
     void drawRay();
+    void drawArea();
     void drawCurve(double cx, double cy, double r, int num_segments);
     void updateMirrorsCoord();
     void updateCurvesCoord();

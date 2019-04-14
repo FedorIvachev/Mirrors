@@ -25,8 +25,12 @@ public:
 class Ray
 {
 public:
+    Point Start;
+    Point Second;
     QVector <Point> path = {};
+    int color = 0;
 };
+
 
 class Mirror
 {
@@ -37,4 +41,13 @@ public:
     Mirror(Vertex l, Vertex r);
     double r = 0;
 
+};
+
+class Area
+{
+public:
+    Point Center;
+    int color = 0;
+    int ach = 0;
+    float r = 0.2;
 };
